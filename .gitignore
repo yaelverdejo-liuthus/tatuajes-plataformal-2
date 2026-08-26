@@ -1,0 +1,39 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# entorno local
+.env.local
+.env
+
+# Skills de terceros instaladas para el pase de diseño (Emil Kowalski,
+# Impeccable Design, Taste). Son herramientas del entorno de trabajo, no
+# código de la plataforma, y traen sus propias licencias.
+.claude/skills/
+
+# Salidas de las pruebas de navegador
+.playwright-mcp/
+
+# Capturas del pase de diseño
+.capturas/

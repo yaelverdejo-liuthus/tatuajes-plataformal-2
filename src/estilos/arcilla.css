@@ -1,0 +1,364 @@
+/* ══════════════════════════════════════════════════════════════════════
+   ARCILLA — el material de la plataforma
+   ══════════════════════════════════════════════════════════════════════
+
+   Todo lo que se ve aquí está hecho de una sola cosa: una masa blanda,
+   mate, de pared gruesa, apoyada sobre un fondo que no es su mismo color.
+   No hay tarjetas con borde de 1px. No hay vidrio. No hay degradados que
+   brillen. Hay piezas de barro.
+
+   ── Por qué esto y no "neumorfismo" ─────────────────────────────────
+
+   Se parecen y no son lo mismo, y la diferencia es justo la que hace que
+   uno sea usable y el otro no.
+
+   El neumorfismo extruye la pieza DEL MISMO color que el fondo: el botón
+   es el fondo, abultado. Por eso no puede tener contraste — si lo tuviera,
+   dejaría de ser el fondo — y por eso sus botones son ilegibles y su texto
+   nunca llega a 4.5:1. Es un estilo que compra su efecto pagando con
+   accesibilidad.
+
+   La arcilla es una pieza SEPARADA que se posa encima. Tiene su propio
+   color, su propia sombra proyectada, y por lo tanto todo el contraste que
+   quiera. El volumen no sale de fundirse con el fondo, sale del grosor de
+   su pared. Eso es lo que aquí se modela.
+
+   ── Las cuatro capas que hacen el grosor ────────────────────────────
+
+   Una pieza de barro real, vista de frente bajo una luz de arriba:
+
+     1. FILO       El canto de arriba recibe la luz de lleno. Es una línea
+                   clara de 1-2px, dentro de la pieza, pegada al borde.
+     2. BRUÑIDO    Debajo de ese canto la luz se derrama hacia dentro y se
+                   apaga. Es un halo suave, también interior, y es lo que
+                   da CURVATURA: sin él la pieza tiene canto y sombra pero
+                   la cara de en medio queda plana, y el conjunto vuelve a
+                   leerse como una tarjeta con las esquinas suaves.
+     3. PARED      Hacia abajo, la cara interior se va a la sombra. Es una
+                   sombra INTERIOR, ancha y suave, subiendo desde la base.
+                   Esta es la que dice "esto tiene espesor" — sin ella la
+                   pieza es una calcomanía con borde brillante.
+     4. APOYO      Debajo, dos sombras proyectadas: una de contacto, corta
+                   y densa, que la pega al fondo; y una de proyección,
+                   larga y difusa, que la levanta.
+
+   Las cuatro juntas, en cada nivel de la escalera. Quitar cualquiera
+   rompe el efecto: sin filo la pieza es plana, sin bruñido es un plano
+   con marco, sin pared es una pegatina, sin apoyo está pintada encima.
+
+   ── Por qué los valores viven por tema y no en un solo sitio ────────
+
+   En oscuro la luz tiene que venir del filo, porque no se puede oscurecer
+   lo que ya es casi negro: una sombra proyectada sobre un fondo de 16
+   niveles no tiene rango para nada. El filo, en cambio, salta 40 niveles
+   en un píxel y el ojo lo lee como canto antes que cualquier gradiente.
+
+   En claro es al revés: la sombra tiene todo el rango del mundo y el filo
+   blanco sobre superficie casi blanca no aporta. Ahí manda el APOYO, y va
+   TEÑIDO —violeta, nunca gris— porque una sombra gris sobre pastel es lo
+   que delata que el barro es en realidad un div.
+
+   ── El fondo no puede ser negro ─────────────────────────────────────
+
+   Regla dura del material: si `--bg` fuera #000, las sombras proyectadas
+   no existirían y toda la escalera de arriba se caería. El fondo oscuro
+   de aquí está levantado a 13 y teñido de violeta a propósito, y la
+   superficie está bastante más arriba (39), para que la sombra tenga de
+   dónde bajar y el filo de dónde subir.                                 */
+
+/* ── La curva ───────────────────────────────────────────────────────
+   Salida rápida y frenado largo, la ease-out fuerte de Emil Kowalski.
+   Las de fábrica de CSS son demasiado flojas para que una animación se
+   sienta intencional.
+
+   Su gemela en JS es `SALIDA` en lib/animacion.ts, y las dos tienen que
+   decir los mismos cuatro números: son el mismo movimiento visto desde
+   los dos lados. Si se separan, una hoja que entra por CSS y una tarjeta
+   que entra por framer dejan de sentirse como la misma app.            */
+:root {
+  --salida: cubic-bezier(0.23, 1, 0.32, 1);
+  /* Para lo que se mueve EN pantalla sin entrar ni salir. */
+  --recorrido: cubic-bezier(0.77, 0, 0.175, 1);
+
+  /*
+   * Para un gesto de autor que hay que MIRAR.
+   *
+   * `--salida` es una ease-out agresiva y está bien para lo que es: acuse
+   * de recibo instantáneo. Pero concentra el 85% del recorrido en el
+   * primer 30% del tiempo, y aplicada a una animación que existe para ser
+   * vista, la mata — el gesto pasa en 150ms y el resto de la duración la
+   * pieza está casi quieta. Es exactamente lo que hacía que el volteo del
+   * engranaje se leyera como plano: no es que no hubiera 3D, es que no
+   * daba tiempo a verlo.
+   *
+   * Ésta también frena al final, pero reparte: a mitad de tiempo va por
+   * la mitad del recorrido. Se usa solo donde el movimiento es el
+   * contenido, no la respuesta.
+   */
+  --vuelo: cubic-bezier(0.36, 0.42, 0.2, 1);
+
+  /* Duraciones. Ninguna animación de interfaz pasa de 300ms; las que
+     pasan son las dos entradas coreografiadas y están marcadas. */
+  --t-toque: 130ms;
+  --t-rapida: 160ms;
+  --t-normal: 220ms;
+  --t-hoja: 320ms;
+
+  /* ── Los avisos del Tablero ────────────────────────────────────────
+
+     Estos cuatro colores viven FUERA de los bloques de tema, y es la
+     única familia de la app que lo hace. No es un descuido: es la
+     decisión.
+
+     Todo lo demás se adapta al tema porque es material —barro que
+     cambia de color según la luz de la escena—. Un aviso no es material:
+     es una SEÑAL, y una señal que cambia de intensidad según el tema
+     deja de ser una señal. Teñidos contra la superficie, en oscuro
+     quedaban casi negros y en claro casi blancos; en los dos casos la
+     fila se veía igual que una tarjeta normal y el aviso dejaba de
+     avisar, que es lo único que tiene que hacer.
+
+     Ahora la pieza ES roja o ES ámbar, con el mismo valor en los dos
+     temas.
+
+     ── El texto va a contraste pleno, y no es negociable ─────────────
+
+     Sobre un fondo saturado, atenuar el texto lo DESTRUYE. Un blanco al
+     80% sobre este rojo da 2.3:1 — peor que el gris que se estaba
+     evitando — porque bajar la opacidad del texto lo acerca al fondo en
+     luminancia. Por eso el segundo renglón de cada aviso no es más
+     tenue: es igual de contrastado y se distingue por tamaño y peso.
+
+     El reparto sale de la señalética de toda la vida, y sale de ahí
+     porque ahí funciona: rojo con blanco, ámbar con tinta negra. Un
+     ámbar lo bastante vivo para leerse como ámbar es demasiado claro
+     para sostener texto blanco.
+
+     Medido contra los fondos de aquí:
+       peligro + peligro-fg      6.19:1
+       peligro + peligro-fg-2    5.59:1
+       aviso   + aviso-fg        8.86:1
+       aviso   + aviso-fg-2      6.42:1
+
+     El rojo bajó de 210 46 42 a 186 38 36 porque el primero deslumbraba:
+     cinco piezas de ese tono en la primera pantalla eran demasiado brillo
+     para algo que se mira todos los días. Sigue siendo rojo pleno —no un
+     granate— y de paso los dos pares ganaron más de un punto de contraste,
+     porque oscurecer un fondo con texto claro encima siempre suma.      */
+  --aviso-peligro: 186 38 36;
+  --aviso-peligro-fg: 255 255 255;
+  --aviso-peligro-fg-2: 255 240 238;
+  /* La pastilla del icono: el mismo rojo, un paso más hondo, para que se
+     lea como pieza metida en la masa y no como un círculo pintado. */
+  --aviso-peligro-hondo: 148 24 24;
+
+  --aviso-aviso: 240 176 74;
+  --aviso-aviso-fg: 40 24 2;
+  --aviso-aviso-fg-2: 72 48 10;
+  --aviso-aviso-hondo: 214 142 40;
+
+  /*
+   * La arcilla de una pieza de color pleno.
+   *
+   * No sirve la escalera normal: sus capas están calibradas contra una
+   * superficie neutra. Sobre un rojo saturado, un filo de blanco al 16%
+   * no se ve, y una pared de negro al 60% ensucia el color hasta
+   * volverlo marrón.
+   *
+   * Aquí el filo sube bastante —el blanco sí se distingue sobre color— y
+   * la pared baja, porque sobre un tono saturado hace falta mucha menos
+   * sombra para leer el mismo espesor.
+   */
+  --arcilla-color:
+    inset 0 2px 0 rgb(255 255 255 / 0.3),
+    inset 0 10px 16px -12px rgb(255 255 255 / 0.32),
+    inset 0 -14px 22px -10px rgb(0 0 0 / 0.32),
+    0 3px 6px rgb(0 0 0 / 0.3),
+    0 18px 34px -14px rgb(0 0 0 / 0.42);
+}
+
+/* ══ TEMA OSCURO — el de por defecto ═══════════════════════════════
+   La escena manda: esto se usa de noche, en el estudio, en un teléfono.
+   Barro oscuro bajo una lámpara cálida, no pastel de guardería.        */
+:root,
+.dark {
+  --bg: 13 11 18;
+  --superficie-honda: 20 18 27;
+
+  --surface: 39 35 52;
+  --surface-2: 51 46 67;
+  --surface-3: 65 59 84;
+
+  /* Los bordes existen todavía, pero ya no dibujan la pieza: solo
+     separan lo que se toca dentro de ella. El volumen lo hace la
+     sombra. Por eso son mucho más tenues que antes. */
+  --border: 58 53 74;
+  --border-strong: 78 71 98;
+  --border-bajo: 38 35 49;
+
+  --fg: 240 238 247;
+  --fg-muted: 172 166 190;
+  /* Sobre la nueva --surface (39 35 52), 148 142 166 da 4.57:1. Subió con
+     la superficie: al aclarar el barro para que la sombra tuviera de dónde
+     salir, el gris de antes se quedó corto. Lo usan las versalitas, los
+     pies de ficha y las notas — texto normal, así que AA pide 4.5. */
+  --fg-subtle: 148 142 166;
+
+  --primary: 146 118 255;
+  --primary-hover: 163 140 255;
+  --primary-fg: 15 12 24;
+
+  /* Terracota. Es el color del barro y el segundo acento del estudio. */
+  --accent: 226 138 96;
+
+  --success: 74 200 145;
+  --warn: 240 176 74;
+  --danger: 246 106 96;
+  --info: 104 174 250;
+
+  /*
+   * ── La escalera de arcilla ──────────────────────────────────────
+   *
+   * Cada peldaño lleva las mismas capas, nombradas de arriba abajo y en
+   * ese orden dentro de la declaración:
+   *
+   *   filo     línea clara de 1-2px pegada al canto superior
+   *   bruñido  un halo de luz suave que baja desde ese canto — es lo que
+   *            hace que la cara superior se vea abombada y no un plano
+   *   pared    la sombra interior que sube desde la base: el ESPESOR
+   *   apoyo    contacto corto y denso + proyección larga y difusa
+   */
+
+  /* Piezas chicas que se apoyan dentro de otra: insignias, chips. */
+  --arcilla-1:
+    inset 0 1px 0 rgb(255 255 255 / 0.13),
+    inset 0 5px 8px -6px rgb(255 255 255 / 0.13),
+    inset 0 -6px 10px -5px rgb(0 0 0 / 0.55),
+    0 1px 2px rgb(0 0 0 / 0.5),
+    0 6px 14px -6px rgb(0 0 0 / 0.55);
+
+  /* El peldaño de trabajo: tarjetas, botones, campos. */
+  --arcilla-2:
+    inset 0 2px 0 rgb(255 255 255 / 0.16),
+    inset 0 10px 16px -12px rgb(255 255 255 / 0.16),
+    inset 0 -14px 22px -10px rgb(0 0 0 / 0.6),
+    0 3px 6px rgb(0 0 0 / 0.5),
+    0 18px 34px -14px rgb(0 0 0 / 0.68);
+
+  /* Lo que de verdad flota: el botón flotante, los avisos. */
+  --arcilla-3:
+    inset 0 2px 0 rgb(255 255 255 / 0.19),
+    inset 0 14px 22px -16px rgb(255 255 255 / 0.18),
+    inset 0 -20px 30px -14px rgb(0 0 0 / 0.62),
+    0 6px 12px rgb(0 0 0 / 0.5),
+    0 32px 60px -18px rgb(0 0 0 / 0.75);
+
+  /* Hojas y paneles: la sombra sube, porque la hoja viene de abajo. */
+  --arcilla-hoja:
+    inset 0 2px 0 rgb(255 255 255 / 0.19),
+    inset 0 16px 26px -20px rgb(255 255 255 / 0.16),
+    0 -12px 56px -10px rgb(0 0 0 / 0.82);
+
+  /* ── Los dos estados que no son un peldaño más ───────────────────
+
+     HUNDIDA es la pieza mientras el dedo la aprieta: el apoyo casi
+     desaparece —está pegada al fondo— y la pared interior se cierra.
+     No es "la sombra chica": es otro estado del mismo objeto.
+
+     POZO es un hueco excavado EN la masa, no una pieza encima. No
+     lleva proyección ninguna, porque un hoyo no proyecta sombra. Lo
+     usan los campos de formulario y el carril del segmentado: sitios
+     donde algo se mete dentro en vez de posarse arriba.               */
+  --arcilla-hundida:
+    inset 0 1px 0 rgb(255 255 255 / 0.05),
+    inset 0 -4px 10px -2px rgb(0 0 0 / 0.55),
+    inset 0 6px 12px -4px rgb(0 0 0 / 0.5),
+    0 1px 1px rgb(0 0 0 / 0.45);
+
+  --arcilla-pozo:
+    inset 0 3px 7px -1px rgb(0 0 0 / 0.55),
+    inset 0 -1.5px 0 rgb(255 255 255 / 0.07);
+
+  /* El halo de foco. Va aquí y no en el bloque de foco porque cambia
+     con el tema: en oscuro el aro tiene que ser más brillante que la
+     pieza; en claro, más oscuro que el papel. */
+  --aro-foco: 146 118 255;
+
+  color-scheme: dark;
+}
+
+/* ══ TEMA CLARO — arcilla pastel ═══════════════════════════════════
+   Aquí sí es el claymorfismo canónico: masa clara sobre un fondo
+   TEÑIDO. El fondo no es blanco a propósito — sobre blanco puro la
+   pieza blanca no tiene dónde proyectar y vuelve a ser una tarjeta
+   plana con borde.                                                    */
+.light {
+  --bg: 238 234 246;
+  --superficie-honda: 229 224 240;
+
+  --surface: 253 251 255;
+  --surface-2: 245 241 252;
+  --surface-3: 235 229 246;
+
+  --border: 225 218 240;
+  --border-strong: 203 194 224;
+  --border-bajo: 214 206 232;
+
+  --fg: 30 25 42;
+  --fg-muted: 96 88 118;
+  /* 118 112 138 sobre --surface da 4.71:1. */
+  --fg-subtle: 118 112 138;
+
+  --primary: 106 74 238;
+  --primary-hover: 90 58 226;
+  --primary-fg: 255 255 255;
+
+  --accent: 190 88 42;
+
+  --success: 22 146 96;
+  --warn: 176 110 16;
+  --danger: 208 52 46;
+  --info: 26 114 208;
+
+  /* Las sombras van TEÑIDAS de violeta, nunca grises. Es la diferencia
+     entre barro pastel y un div con box-shadow. */
+  --arcilla-1:
+    inset 0 1.5px 0 rgb(255 255 255 / 0.95),
+    inset 0 5px 8px -6px rgb(255 255 255 / 0.9),
+    inset 0 -6px 10px -5px rgb(78 56 132 / 0.16),
+    0 1px 2px rgb(64 46 112 / 0.07),
+    0 6px 14px -6px rgb(64 46 112 / 0.18);
+
+  --arcilla-2:
+    inset 0 2px 0 rgb(255 255 255 / 0.95),
+    inset 0 10px 16px -12px rgb(255 255 255 / 0.9),
+    inset 0 -14px 22px -10px rgb(78 56 132 / 0.2),
+    0 3px 6px rgb(64 46 112 / 0.08),
+    0 18px 34px -14px rgb(64 46 112 / 0.26);
+
+  --arcilla-3:
+    inset 0 2px 0 rgb(255 255 255 / 0.95),
+    inset 0 14px 22px -16px rgb(255 255 255 / 0.9),
+    inset 0 -20px 30px -14px rgb(78 56 132 / 0.22),
+    0 6px 12px rgb(64 46 112 / 0.09),
+    0 32px 60px -18px rgb(64 46 112 / 0.3);
+
+  --arcilla-hoja:
+    inset 0 2px 0 rgb(255 255 255 / 0.95),
+    inset 0 16px 26px -20px rgb(255 255 255 / 0.9),
+    0 -12px 56px -10px rgb(64 46 112 / 0.28);
+
+  --arcilla-hundida:
+    inset 0 1px 0 rgb(255 255 255 / 0.5),
+    inset 0 -4px 10px -2px rgb(78 56 132 / 0.2),
+    inset 0 6px 12px -4px rgb(78 56 132 / 0.22),
+    0 1px 1px rgb(64 46 112 / 0.09);
+
+  --arcilla-pozo:
+    inset 0 3px 7px -1px rgb(78 56 132 / 0.2),
+    inset 0 -1.5px 0 rgb(255 255 255 / 0.95);
+
+  --aro-foco: 106 74 238;
+
+  color-scheme: light;
+}

@@ -1,0 +1,869 @@
+@import './estilos/arcilla.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Tipografía ─────────────────────────────────────────────────────────
+   Dos voces, y cada una con su trabajo:
+
+   · Space Grotesk (`font-display`) es la del estudio. Va en los títulos de
+     pantalla y en las cifras grandes — lo que se lee de un vistazo desde
+     lejos, no lo que se lee palabra por palabra.
+   · Inter (`font-sans`) es la de trabajo: todo el cuerpo, etiquetas,
+     botones y formularios. Está dibujada para tamaños chicos en pantalla,
+     que es el 90% de esta app.
+   · `font-mono` se queda con la del sistema, sin descargar nada: solo la
+     usan los códigos (claves de Ajustes, folios T-001), y ahí lo que
+     importa es que las cifras alineen, no la personalidad.
+
+   Van AUTO-HOSPEDADAS, no desde Google. El service worker solo cachea lo
+   del mismo origen, así que una fuente externa dejaría de cargar justo en
+   el caso que esta app promete cubrir: el estudio sin señal. Además así no
+   se le avisa a un tercero cada vez que alguien del equipo abre la
+   herramienta.
+
+   Solo el subset `latin`: el español entero (ñ, tildes, ¿, ¡) cabe ahí.
+   Bajar también `latin-ext` costaba 104 KB de más para caracteres que aquí
+   no se escriben, y si algún día aparece uno, el `unicode-range` hace que
+   ese glifo suelto caiga en la fuente del sistema sin romper nada.
+
+   `font-display: swap` es la regla de siempre en este proyecto: el texto se
+   ve desde el primer fotograma con la fuente del sistema y cambia cuando la
+   propia esté lista. Nunca una pantalla en blanco esperando una descarga. */
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/fuentes/inter-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-weight: 500 700;
+  font-display: swap;
+  src: url('/fuentes/space-grotesk-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-bg text-fg font-sans antialiased;
+    overscroll-behavior-y: none;
+  }
+
+  /*
+   * El fondo no es un color liso: es la mesa sobre la que se apoya el
+   * barro.
+   *
+   * Dos manchas de luz muy tenues, una violeta arriba a la izquierda y
+   * una terracota abajo a la derecha, fijas al viewport. Sin esto, todas
+   * las sombras proyectadas de la app caen sobre el mismo tono exacto y
+   * el conjunto se lee como piezas recortadas y pegadas. Con la luz
+   * desigual, cada pieza se apoya sobre un fondo ligeramente distinto y
+   * la escena empieza a tener un sitio de dónde viene la luz.
+   *
+   * Va en un pseudo-elemento fijo y no en `background` del body porque
+   * el body crece con el contenido: en una página larga el degradado se
+   * estiraría y las manchas se irían al fondo del scroll.
+   */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(60rem 40rem at 12% -8%, rgb(var(--primary) / 0.07), transparent 60%),
+      radial-gradient(48rem 36rem at 108% 104%, rgb(var(--accent) / 0.05), transparent 62%);
+  }
+
+  /* Los números de dinero y métricas deben alinearse en columna */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum';
+  }
+
+  /*
+   * ── Las superficies que no dibujé yo ──────────────────────────────
+   *
+   * Selección, cursor de texto, barra de scroll y aro de foco vienen de
+   * fábrica en un gris de navegador que no pertenece a ningún sistema de
+   * diseño. Es lo más barato que separa una pantalla construida de una
+   * pantalla ensamblada, y es lo que más se salta.
+   */
+  ::selection {
+    background: rgb(var(--primary) / 0.28);
+    color: rgb(var(--fg));
+  }
+
+  /*
+   * El aro de foco va con `outline` y no con `box-shadow`, que es como
+   * suele hacerse.
+   *
+   * Con box-shadow el aro OCUPA la propiedad, y en esta app la propiedad
+   * ya está ocupada: es donde vive el material. Un campo de formulario
+   * lleva su pozo excavado en `box-shadow`, así que al enfocarlo el aro
+   * se lo comería y el hueco se volvería plano justo en el momento en que
+   * lo estás usando.
+   *
+   * `outline` es un canal aparte, respeta el `border-radius` en todos los
+   * navegadores actuales, y con `outline-offset` queda separado de la
+   * pieza — que es lo que hace falta, porque pegado al canto se confunde
+   * con el filo de luz de la propia arcilla.
+   */
+  :focus-visible {
+    outline: 2px solid rgb(var(--aro-foco));
+    outline-offset: 2px;
+  }
+
+  input,
+  textarea,
+  select {
+    caret-color: rgb(var(--primary));
+  }
+
+  ::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: rgb(var(--border-strong));
+    background-clip: content-box;
+    border: 3px solid transparent;
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(var(--fg-subtle));
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--border-strong)) transparent;
+  }
+}
+
+@layer components {
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .safe-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  /* ══ EL MATERIAL ══════════════════════════════════════════════════
+
+     Cuatro clases y con eso está construida la app entera. Cualquier
+     pieza nueva usa una de estas; ninguna se inventa su propia sombra.
+
+     Las sombras viven en variables por tema (ver arcilla.css) y estas
+     clases solo las montan sobre la superficie que toca. Por eso el
+     cambio de tema no necesita una sola clase condicional.             */
+
+  .arcilla {
+    background-color: rgb(var(--surface));
+    box-shadow: var(--arcilla-2);
+  }
+
+  .arcilla-sutil {
+    background-color: rgb(var(--surface-2));
+    box-shadow: var(--arcilla-1);
+  }
+
+  .arcilla-alta {
+    background-color: rgb(var(--surface));
+    box-shadow: var(--arcilla-3);
+  }
+
+  /* Un hueco EXCAVADO en la masa: campos, carriles, canales de barra.
+     No lleva sombra proyectada porque un hoyo no proyecta nada. */
+  .pozo {
+    background-color: rgb(var(--superficie-honda));
+    box-shadow: var(--arcilla-pozo);
+  }
+
+  /*
+   * El pozo de un campo rechazado.
+   *
+   * Existe como clase propia y no como `pozo ring-1 ring-danger` por una
+   * razón mecánica: las utilidades `ring-*` de Tailwind se implementan
+   * ENCIMA de `box-shadow`, que es justo donde vive el material. Como las
+   * utilidades ganan a la capa de componentes, un `ring` sobre `.pozo` no
+   * se suma — lo sustituye, y el campo pierde el hueco exactamente en el
+   * momento en que hay que mirarlo.
+   *
+   * Aquí las dos cosas van en la misma declaración y se suman: el hueco
+   * de siempre, más un filo rojo por dentro.
+   */
+  .pozo-error {
+    background-color: rgb(var(--danger) / 0.1);
+    box-shadow:
+      var(--arcilla-pozo),
+      inset 0 0 0 1.5px rgb(var(--danger) / 0.55);
+  }
+
+  /*
+   * ── El hundido ────────────────────────────────────────────────────
+   *
+   * El gesto que define este rediseño: al apretar, la pieza se comprime
+   * contra la mesa. Se encoge un 2.5%, el apoyo casi desaparece —está
+   * pegada al fondo— y la pared interior se cierra sobre sí misma.
+   *
+   * Son las tres cosas juntas, y ninguna sobra. Solo el `scale` es el
+   * botón genérico de siempre. Solo la sombra, sin encoger, parece que
+   * se apagó la luz. Las dos a la vez son barro.
+   *
+   * 130ms: dentro de los 100-160 que pide una pulsación. Más lento se
+   * siente como latencia, más rápido no alcanza a leerse.
+   *
+   * La transición nombra sus dos propiedades en vez de usar `all`. Y sí,
+   * `box-shadow` repinta: es un elemento chico, en un evento discreto,
+   * durante 130ms. La regla de animar solo transform y opacidad protege
+   * a los bucles continuos, no a una pulsación — y aquí la sombra ES el
+   * efecto, no un adorno encima de él.
+   */
+  .pulsable {
+    transition:
+      transform var(--t-toque) var(--salida),
+      box-shadow var(--t-toque) var(--salida);
+  }
+  .pulsable:active:not(:disabled) {
+    transform: scale(0.975);
+    box-shadow: var(--arcilla-hundida);
+  }
+
+  /* Skeleton: barro sin cocer todavía. */
+  .skeleton {
+    border-radius: 0.875rem;
+    background-color: rgb(var(--surface-3));
+    animation: respirar 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  /* ══ GESTOS DE LOS ICONOS ═════════════════════════════════════════
+
+     ── El cambio más grande de este pase de animación ────────────────
+
+     Antes los seis iconos del menú se movían EN BUCLE INFINITO, siempre,
+     en todas las pantallas. La intención era buena —dar vida sin esperar
+     un cursor que en el teléfono no existe— pero el marco de decisión de
+     Emil Kowalski lo contesta de una: la primera pregunta no es "¿cómo
+     lo animo?" sino "¿cuántas veces al día se ve esto?".
+
+     Un menú se ve cientos de veces al día. Ese renglón de la tabla dice
+     "quitar o reducir drásticamente". Y la razón es concreta, no
+     doctrinal: seis siluetas moviéndose sin parar en el borde de la
+     pantalla compiten por la atención cada segundo que la app está
+     abierta, y compiten contra los datos, que es a lo que uno vino. Una
+     animación que corre siempre deja de informar y pasa a ser ruido de
+     fondo — y encima gasta batería en un teléfono que ya está corriendo
+     consultas.
+
+     El gesto no se tira: se le pone un DISPARADOR. Ahora cada icono hace
+     su movimiento una sola vez, y solo cuando significa algo:
+
+       · al entrar a su sección  → acusa el cambio de estado
+       · al pasar el cursor      → solo donde hay cursor de verdad
+
+     Es el mismo dibujo, la misma personalidad, y ahora dice algo. El
+     martillo martilla cuando ABRES Trabajos, no eternamente.
+
+     Cómo se dispara: la propiedad `animation` pasa de `none` a un valor
+     cuando aparece `[data-activo]`, y eso basta para que corra una vez.
+     No hace falta remontar el nodo ni llevar un `key`.                  */
+
+  .gesto {
+    animation-duration: 900ms;
+    animation-timing-function: var(--salida);
+    animation-iteration-count: 1;
+    animation-fill-mode: none;
+  }
+
+  [data-activo] .gesto-latir,
+  [data-activo] .gesto-asomarse,
+  [data-activo] .gesto-martillar,
+  [data-activo] .gesto-vocear,
+  [data-activo] .gesto-hojear,
+  [data-activo] .gesto-engranar {
+    animation-play-state: running;
+  }
+
+  [data-activo] .gesto-latir { animation-name: latir; }
+  [data-activo] .gesto-asomarse { animation-name: asomarse; }
+  [data-activo] .gesto-martillar { animation-name: martillar; }
+  [data-activo] .gesto-vocear { animation-name: vocear; }
+  [data-activo] .gesto-hojear { animation-name: hojear; }
+  [data-activo] .gesto-engranar { animation-name: engranar; animation-duration: 1.4s; }
+
+  /* El pivote va en el puño: en el martillo de lucide la cabeza queda
+     arriba a la derecha y el mango termina abajo a la izquierda, así
+     que girando desde ahí la cabeza baja de verdad al golpear. */
+  .gesto-martillar { transform-origin: 12% 88%; }
+  .gesto-vocear { transform-origin: 25% 66%; }
+
+  /*
+   * El globo de WhatsApp, donde aparezca.
+   *
+   * Este es el caso donde el cambio de bucle a disparador se nota más.
+   * En la lista de Leads hay UNO POR TARJETA: con treinta leads eran
+   * treinta globos repicando en bucle a la vez, y había que pasarle a
+   * cada uno un `animation-delay` distinto solo para que la pantalla no
+   * parpadeara en bloque. Ese apaño desaparece junto con el bucle.
+   *
+   * Ahora repica cuando lo tocas o cuando le pasas el cursor, que es
+   * cuando significa algo: estás a punto de abrir esa conversación.
+   */
+  .gesto-repicar {
+    transform-origin: 50% 60%;
+  }
+
+  a:active > .gesto-repicar,
+  button:active > .gesto-repicar {
+    animation-name: repicar;
+  }
+
+  /*
+   * El reflejo que sube por dentro de una barra de la gráfica.
+   *
+   * Antes era un bucle de 4.5s para siempre. Ahora corre UNA vez, como
+   * parte de la entrada de la gráfica: la barra crece y la luz la
+   * recorre. Es el mismo destello, pero pasa a ser el remate de una
+   * entrada en vez de un letrero de neón en una pantalla de datos.
+   *
+   * Nace y muere en opacidad 0, así que si no corriera —o con "reducir
+   * movimiento"— no queda una banda de luz clavada a media barra.
+   */
+  .anim-brillo {
+    opacity: 0;
+    animation: brillo 1.5s var(--salida) 1 backwards;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    a:hover > .gesto-repicar,
+    button:hover > .gesto-repicar {
+      animation-name: repicar;
+    }
+    .fila-nav:hover .gesto-latir { animation-name: latir; }
+    .fila-nav:hover .gesto-asomarse { animation-name: asomarse; }
+    .fila-nav:hover .gesto-martillar { animation-name: martillar; }
+    .fila-nav:hover .gesto-vocear { animation-name: vocear; }
+    .fila-nav:hover .gesto-hojear { animation-name: hojear; }
+    .fila-nav:hover .gesto-engranar { animation-name: engranar; animation-duration: 1.4s; }
+  }
+
+  /* ══ EL ENGRANAJE DE AJUSTES ══════════════════════════════════════
+
+     La entrada de autor de la app. El porqué de que exista —y de que sea
+     la única pantalla que se la gana— está en el componente,
+     EngranajeArcilla.tsx.
+
+     Va en CSS y no en framer por la misma razón que el hundido: es una
+     secuencia PREDETERMINADA, corre una vez y corre fuera del hilo
+     principal. Framer serviría para algo interrumpible; esto no lo es.  */
+
+  /*
+   * El viaje: del centro de la pantalla a su hueco del encabezado.
+   *
+   * Las tres variables las escribe el componente después de medir:
+   * `--vx`/`--vy` son la distancia de su hueco al centro del viewport, y
+   * `--k` cuánto tiene que crecer para medir 190px allí. Sin ellas esta
+   * clase no se aplica y la pieza se queda quieta en su esquina.
+   *
+   * `z-index` porque durante el viaje cruza por encima de las tarjetas de
+   * umbrales, que ya están entrando. No les roba ningún toque: el
+   * componente entero lleva `pointer-events: none`.
+   */
+  .engranaje-viaje {
+    /* `width`/`height` al 100% y no `auto`: este div se metió ENTRE el
+       hueco del encabezado y la escena, y sin tamaño propio rompía la
+       cadena de alturas — la escena, que va a `height: 100%`, se
+       quedaba en 0 y no se renderizaba nada. Un envoltorio que solo
+       existe para llevar un transform tiene que ser transparente al
+       layout. */
+    width: 100%;
+    height: 100%;
+    position: relative;
+    z-index: 20;
+    animation: engranaje-viaja 1500ms var(--recorrido) backwards;
+  }
+
+  /* El lienzo donde se pinta el sólido. Cuadrado y a tamaño completo;
+     su mapa de bits lo dimensiona el componente para el mayor tamaño al
+     que se va a ver, no para el de la esquina. */
+  .engranaje-lienzo {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .engranaje-quieto {
+    width: 100%;
+    height: 100%;
+    position: relative;
+  }
+
+  /*
+   * La sombra que posa la pieza sobre la mesa.
+   *
+   * Elipse, no círculo: la sombra de un objeto ladeado bajo una luz alta
+   * se aplasta contra el suelo. Y desplazada hacia abajo y a la derecha,
+   * que es donde cae según la luz que ilumina todo el resto del sistema
+   * —la misma dirección que usa el sombreado del engranaje, ver
+   * lib/engranaje3d.ts.
+   *
+   * Entra tarde: la sombra de contacto solo tiene sentido cuando la pieza
+   * ya aterrizó. Mientras cruza la pantalla está en el aire.
+   */
+  .engranaje-sombra {
+    position: absolute;
+    left: 14%;
+    right: 4%;
+    bottom: 4%;
+    height: 22%;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, rgb(0 0 0 / 0.5), transparent 78%);
+    filter: blur(4px);
+    animation: engranaje-sombra-entra 380ms var(--salida) 1180ms backwards;
+  }
+
+  .light .engranaje-sombra {
+    /* Teñida de violeta, como todas las sombras de este sistema. Una
+       sombra gris sobre pastel delata que el barro es en realidad un div. */
+    background: radial-gradient(closest-side, rgb(64 46 112 / 0.34), transparent 78%);
+  }
+
+  /* ══ TRAMA DE STENCIL ═════════════════════════════════════════════
+     El fondo de un diseño del catálogo que todavía no tiene foto.
+
+     Un rectángulo gris liso con el código encima se lee como imagen
+     rota: el ojo no distingue "no hay foto" de "la foto no cargó". El
+     rayado diagonal dice que el hueco es a propósito, y de paso es la
+     superficie sobre la que se calca un stencil, que es exactamente lo
+     que le falta a esa ficha.                                          */
+  .trama-stencil {
+    background-image: repeating-linear-gradient(
+      135deg,
+      transparent 0 7px,
+      rgb(var(--fg) / 0.035) 7px 8px
+    );
+  }
+
+  /* ══ LAS DOS LLUVIAS ══════════════════════════════════════════════
+
+     Calaveras en el login, billetes en los KPI. Se conservan —son lo
+     único de esta app que no es genérico— pero con dos correcciones que
+     vienen del mismo marco de frecuencia que reordenó los iconos.
+
+     1. FRECUENCIA. La del login se ve una vez por sesión: es rara, y
+        una animación rara puede darse el lujo de encantar. La de los
+        KPI se ve cada vez que abres el Tablero, o sea decenas de veces
+        al día, y encima detrás de las cifras que son el motivo de la
+        pantalla. Esa baja el volumen: menos piezas, más lentas y más
+        tenues. En un tablero, la decoración que le compite al dato
+        pierde. Siempre.
+
+     2. SE APAGAN CUANDO NO SE VEN. Las dos capas paran solas si su
+        contenedor sale de pantalla o si la pestaña se va al fondo. Un
+        bucle decorativo corriendo en una pestaña que nadie mira es
+        batería quemada a cambio de nada.                               */
+
+  .lluvia {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    /* La máscara abre una zona de respeto en el centro: donde está el
+       formulario la lluvia baja al 8% y recupera su fuerza hacia los
+       bordes. Sin ella pasaba una calavera justo por encima del campo de
+       contraseña y el ojo la seguía a ella en vez de leer la etiqueta.
+
+       La elipse va más alta que ancha (20 × 24) porque eso es la columna
+       que protege: angosta y larga. */
+    -webkit-mask-image: radial-gradient(
+      ellipse 20rem 24rem at 50% 50%,
+      rgba(0, 0, 0, 0.08) 0%,
+      rgba(0, 0, 0, 0.08) 40%,
+      #000 88%
+    );
+    mask-image: radial-gradient(
+      ellipse 20rem 24rem at 50% 50%,
+      rgba(0, 0, 0, 0.08) 0%,
+      rgba(0, 0, 0, 0.08) 40%,
+      #000 88%
+    );
+  }
+
+  .lluvia-billetes {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    border-radius: inherit;
+    /* Ancla el silencio arriba —toda la banda, de lado a lado— y deja
+       que la lluvia tome cuerpo hacia abajo y a la derecha. Esa franja
+       de arriba lleva dos datos, la etiqueta y el punto del semáforo, y
+       un billete del mismo color junto al punto le quita filo justo al
+       elemento que resume la tarjeta. La cifra queda protegida. */
+    -webkit-mask-image: radial-gradient(
+      150% 90% at 10% 0%,
+      rgba(0, 0, 0, 0.04) 0%,
+      rgba(0, 0, 0, 0.04) 62%,
+      #000 108%
+    );
+    mask-image: radial-gradient(
+      150% 90% at 10% 0%,
+      rgba(0, 0, 0, 0.04) 0%,
+      rgba(0, 0, 0, 0.04) 62%,
+      #000 108%
+    );
+  }
+
+  .carril-caida {
+    position: absolute;
+    top: 0;
+    animation-name: caer;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+
+  .carril-vaiven {
+    display: block;
+    animation-name: vaiven;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+    animation-direction: alternate;
+  }
+
+  /* La tercera capa: la pieza se ladea sobre su eje vertical mientras
+     baja. Es lo que separa una hoja de papel cayendo de una calcomanía
+     que se desliza — y es la única de las tres que da volumen, porque
+     las otras dos solo lo mueven por el plano.
+
+     El giro va corto a propósito. Iba a ±52° buscando volumen y lo que
+     hacía era destruir el dibujo: pasando de unos 35° el escorzo se suma
+     a la comba del papel y el billete se convierte en una cinta doblada.
+     A ±26° se nota que se ladea sin que el escorzo compita con la comba. */
+  .carril-voltear {
+    display: block;
+    animation-name: voltear;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+    animation-direction: alternate;
+  }
+
+  /* Lo apaga el hook `useQuieto`, que pone este atributo
+     cuando el contenedor sale del viewport o la pestaña se oculta. */
+  [data-quieto='si'] * {
+    animation-play-state: paused !important;
+  }
+
+  /* ══ GRÁFICAS ═════════════════════════════════════════════════════ */
+
+  /* La barra crece desde su base al entrar. La altura real va en un
+     `style` inline y siempre es correcta: esto es decoración encima. Si
+     no corriera, la gráfica se ve completa desde el primer fotograma. */
+  .anim-crecer {
+    animation: crecer 0.6s var(--salida) backwards;
+    transform-origin: bottom;
+  }
+
+  /* La línea se traza sola de izquierda a derecha. El truco es
+     `pathLength="1"` en el path: normaliza cualquier trazo a longitud 1,
+     así el mismo CSS sirve para una línea de tres puntos y para una de
+     treinta, sin medirla en JavaScript.
+
+     En reposo `stroke-dashoffset` vale 0, o sea la línea COMPLETA. */
+  .anim-trazo {
+    stroke-dasharray: 1;
+    animation: trazar 1.1s var(--salida) backwards;
+  }
+
+  .anim-area {
+    animation: aparecer 1.1s var(--salida) backwards;
+  }
+
+  /* El aro que late sobre el último dato de cada creativo — el de hoy,
+     que es el único que todavía se puede corregir. Nace invisible. */
+  .anim-pulso {
+    opacity: 0;
+    animation: pulso 2.6s var(--salida) infinite;
+  }
+
+  /* ══ LA CALAVERA DEL TUTORIAL ═════════════════════════════════════
+     Las unidades son las del viewBox (64 × 72.5), no píxeles: dentro de
+     un SVG, `translateY(3px)` son 3 unidades de usuario, así que el
+     gesto escala solo con el tamaño al que se pinte. */
+  .calavera-mandibula {
+    animation: hablar 4.6s ease-in-out infinite;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   FOTOGRAMAS
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Tablero: un latido corto y se calla. */
+@keyframes latir {
+  0% { transform: scale(1); }
+  22% { transform: scale(1.16); }
+  44% { transform: scale(0.97); }
+  66% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+
+/* Leads: se asoman y vuelven, como quien saluda. */
+@keyframes asomarse {
+  0% { transform: translateY(0); }
+  26% { transform: translateY(-18%); }
+  52% { transform: translateY(0); }
+  74% { transform: translateY(-8%); }
+  100% { transform: translateY(0); }
+}
+
+/* Trabajos: levanta, golpea, rebota y da un segundo golpe más flojo.
+   El descanso del final es lo que lo vuelve un martillazo y no un
+   temblor. */
+@keyframes martillar {
+  0% { transform: rotate(0deg); }
+  18% { transform: rotate(-24deg); }
+  38% { transform: rotate(18deg); }
+  50% { transform: rotate(9deg); }
+  62% { transform: rotate(15deg); }
+  76% { transform: rotate(10deg); }
+  100% { transform: rotate(0deg); }
+}
+
+/* Pauta: el megáfono vocea y se va apagando. */
+@keyframes vocear {
+  0% { transform: rotate(0deg); }
+  16% { transform: rotate(-12deg); }
+  34% { transform: rotate(9deg); }
+  52% { transform: rotate(-7deg); }
+  70% { transform: rotate(5deg); }
+  86% { transform: rotate(-3deg); }
+  100% { transform: rotate(0deg); }
+}
+
+/* Catálogo: el gesto de pasar una lámina y acomodarla. */
+@keyframes hojear {
+  0% { transform: translateX(0) rotate(0deg); }
+  30% { transform: translateX(-11%) rotate(-8deg); }
+  62% { transform: translateX(6%) rotate(5deg); }
+  100% { transform: translateX(0) rotate(0deg); }
+}
+
+/* ── El viaje del engranaje ───────────────────────────────────────────
+   Se queda quieto en el centro el primer 45% —que es donde ocurre el
+   volteo, y donde a 190px se aprecia el canto— y el resto del tiempo se
+   va a su hueco encogiéndose.
+
+   Va con `--recorrido` (ease-in-out fuerte) y no con `--salida`: esto no
+   entra ni sale, se DESPLAZA por la pantalla, y ese es el renglón del
+   árbol de decisión que pide aceleración y frenado en los dos extremos.
+   Con una ease-out arrancaría de golpe, que en un recorrido largo se lee
+   como un tirón.
+
+   `translate3d` y no `translate`: fuerza la composición en GPU. */
+@keyframes engranaje-viaja {
+  0%,
+  45% {
+    transform: translate3d(var(--vx), var(--vy), 0) scale(var(--k));
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes engranaje-sombra-entra {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Ajustes: la vuelta entera del engrane. Cierra en 360 y no en 90 para
+   que termine exactamente donde empezó, sin salto. */
+@keyframes engranar {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ── Las lluvias ──────────────────────────────────────────────────────
+   Lineal a propósito: una pluma no acelera a ojo al caer, y cualquier
+   ease delataría el punto donde el ciclo se reinicia.
+
+   Abre y cierra en opacidad 0 para que la entrada y la salida se fundan
+   contra el borde en vez de aparecer y desaparecer de golpe. El recorrido
+   va en la variable `--caida` porque la tarjeta de un KPI y la pantalla
+   del login no miden ni de lejos lo mismo. */
+@keyframes caer {
+  0% {
+    transform: translate3d(0, var(--desde, -20vh), 0) rotate(0deg);
+    opacity: 0;
+  }
+  14%,
+  86% {
+    opacity: var(--brillo);
+  }
+  100% {
+    transform: translate3d(0, var(--hasta, 120vh), 0) rotate(var(--giro));
+    opacity: 0;
+  }
+}
+
+@keyframes vaiven {
+  from { transform: translate3d(calc(var(--deriva) * -1), 0, 0); }
+  to { transform: translate3d(var(--deriva), 0, 0); }
+}
+
+@keyframes voltear {
+  from { transform: perspective(520px) rotateY(-26deg); }
+  to { transform: perspective(520px) rotateY(26deg); }
+}
+
+/* ── Gráficas ───────────────────────────────────────────────────────── */
+
+@keyframes crecer {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+/* Cierra en 0: línea completa. */
+@keyframes trazar {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes aparecer {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Un aro que se abre y se desvanece, como el eco de un punto. */
+@keyframes pulso {
+  0% { transform: scale(0.55); opacity: 0.8; }
+  70%, 100% { transform: scale(2.6); opacity: 0; }
+}
+
+@keyframes respirar {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+/* Un reflejo que recorre la barra de abajo a arriba. Abre y cierra en
+   opacidad 0 para que no quede una banda clavada si se congela. */
+@keyframes brillo {
+  0% { transform: translateY(140%); opacity: 0; }
+  35% { opacity: 0.85; }
+  75% { opacity: 0.85; }
+  100% { transform: translateY(-140%); opacity: 0; }
+}
+
+/* WhatsApp: el brinco de un mensaje que acaba de entrar. Da el respingo y
+   se acomoda meneándose cada vez menos, como una campanita. */
+@keyframes repicar {
+  0% { transform: scale(1) rotate(0deg); }
+  18% { transform: scale(1.16) rotate(-12deg); }
+  36% { transform: scale(1.1) rotate(9deg); }
+  54% { transform: scale(1.06) rotate(-6deg); }
+  72% { transform: scale(1.03) rotate(3deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+/* ── Hablar, no masticar ──────────────────────────────────────────────
+   La diferencia está entera en el ritmo. Una mandíbula que sube y baja
+   pareja es un cascanueces; el habla va en ráfagas de aperturas
+   desiguales —unas sílabas apenas abren, otras se abren del todo—
+   separadas por pausas. La de 52% a 72% es la que más trabaja: es el
+   respiro entre dos frases, y sin ella el bucle se delata a los pocos
+   segundos.
+
+   Cierra en 0 para que "reducir movimiento", que congela todo en el
+   último fotograma, la deje con la boca cerrada y no a media palabra. */
+@keyframes hablar {
+  0% { transform: translateY(0); }
+  4% { transform: translateY(2.2px); }
+  9% { transform: translateY(0.4px); }
+  14% { transform: translateY(4.4px); }
+  20% { transform: translateY(0.8px); }
+  25% { transform: translateY(2.6px); }
+  31% { transform: translateY(0.2px); }
+  37% { transform: translateY(3.8px); }
+  43% { transform: translateY(0.6px); }
+  48% { transform: translateY(1.8px); }
+  52% { transform: translateY(0); }
+  72% { transform: translateY(0); }
+  76% { transform: translateY(4px); }
+  81% { transform: translateY(0.5px); }
+  86% { transform: translateY(2.4px); }
+  91% { transform: translateY(0.3px); }
+  96% { transform: translateY(1.4px); }
+  100% { transform: translateY(0); }
+}
+
+/* ── Reducir movimiento ───────────────────────────────────────────────
+   "Menos movimiento y más suave", no "cero". Quien pide reducir
+   movimiento pide que las cosas no se DESPLACEN —eso es lo que marea— no
+   que la interfaz pierda toda continuidad.
+
+   Apagarlo todo es peor de lo que parece: un error de formulario aparece
+   de golpe en vez de fundirse, un botón cambia de color de un fotograma
+   al otro, y varias cosas pasan a leerse como parpadeos. Se pierde la
+   comprensión, que es justo lo que la transición estaba sosteniendo.
+
+   Así que se apaga el movimiento y se conservan opacidad y color.
+
+   El hundido es la excepción deliberada: `scale(0.975)` es acuse de
+   recibo de una pulsación, no transporte. Nadie se marea porque un botón
+   confirme que lo tocaron, y sin él la app deja de contestar. La
+   reducción le quita la sombra y le deja el encogido. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    /* Las de fotogramas se cortan enteras: aquí son todas decorativas o
+       de recorrido (lluvias, gestos del menú, trazado de gráficas) y
+       ninguna transporta información. */
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+
+    transition-property: opacity, color, background-color, border-color, box-shadow, fill,
+      stroke !important;
+    transition-duration: 120ms !important;
+  }
+
+  .pulsable {
+    transition: transform 100ms linear !important;
+  }
+  .pulsable:active:not(:disabled) {
+    transform: scale(0.975);
+    box-shadow: var(--arcilla-hundida);
+  }
+
+  /* Se esconden enteras en vez de quedar congeladas en su último
+     fotograma. Es decoración, no información, y quien pidió menos
+     movimiento no pierde nada al no verla: el semáforo lo dicen el
+     color de la cifra y el punto de la esquina, que siguen ahí. */
+  .lluvia,
+  .lluvia-billetes {
+    display: none;
+  }
+}

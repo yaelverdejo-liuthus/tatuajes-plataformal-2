@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="es-MX" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5"
+    />
+    <title>Estudio · Tablero</title>
+    <meta name="description" content="Herramienta interna de gestión del estudio de tatuajes." />
+
+    <!-- Se pinta antes del primer render para no parpadear en blanco de noche -->
+    <meta name="theme-color" content="#0b0b0e" />
+    <meta name="color-scheme" content="dark light" />
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/iconos/icono-192.png" />
+    <link rel="apple-touch-icon" href="/iconos/apple-touch-icon.png" />
+
+    <!-- iOS: sin estas dos, Safari abre con barra de navegador -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Estudio" />
+
+    <!-- Herramienta interna: fuera de los buscadores -->
+    <meta name="robots" content="noindex, nofollow" />
+
+    <style>
+      /* Fondo antes de que cargue el CSS, para que no destelle blanco */
+      html { background: #0b0b0e; }
+      html.light { background: #fafafb; }
+    </style>
+  </head>
+  <body>
+    <!--
+      Contenido de arranque: React lo borra al montar. Si sigue visible es
+      porque el JS nunca corrió, y sin esto la pantalla quedaba en negro
+      total sin una sola pista de por qué.
+    -->
+    <div id="root">
+      <div id="arranque" style="max-width:34rem;margin:0 auto;padding:3rem 1.25rem;color:#ededf2;font-family:system-ui,sans-serif;line-height:1.55">
+        <h1 style="margin:0 0 .5rem;font-size:1.5rem;font-weight:600">La app no arrancó</h1>
+        <p style="margin:0 0 1rem;color:#a0a0ae">
+          Estás viendo esto porque el JavaScript no llegó a ejecutarse.
+        </p>
+        <p id="arranque-motivo" style="margin:0;padding:.875rem 1rem;border-radius:.75rem;background:#1b1b22;color:#e8a33d;font-size:.9375rem"></p>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        var motivo = document.getElementById('arranque-motivo')
+        if (location.protocol === 'file:') {
+          motivo.textContent =
+            'Abriste el archivo directo desde el disco (file://). Así no funciona: ' +
+            'hay que servirlo. Usa "npm run dev" y entra a http://localhost:5173, ' +
+            'o "npm run preview" para probar el build.'
+        } else {
+          motivo.textContent =
+            'Puede ser un error de carga o una versión vieja en cache. ' +
+            'Recarga forzando (Ctrl+Shift+R) y revisa la consola del navegador (F12).'
+        }
+      })()
+    </script>
+
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
